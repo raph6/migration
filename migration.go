@@ -55,7 +55,7 @@ func Migrate(db *sqlx.DB) {
 		// execute the migration
 		sqlStmtSlice := strings.Split(string(content), ";")
 		for _, request := range sqlStmtSlice {
-			if request == "" {
+			if request != "" {
 				db.MustExec(request)
 				fmt.Println(filename + ": sql executed")
 			}
