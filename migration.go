@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -14,6 +15,8 @@ func Migrate(db *sqlx.DB) {
 		id_migration VARCHAR(255) NOT NULL,
 		executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`)
+
+	fmt.Println("migrations table OK")
 
 	// get all files in migrations folder
 	files, err := os.ReadDir("migrations")
@@ -50,7 +53,13 @@ func Migrate(db *sqlx.DB) {
 		}
 
 		// execute the migration
-		db.MustExec(string(content))
+		sqlStmtSlice := strings.Split(string(content), ";")
+		for _, request := range sqlStmtSlice {
+			if request == "" {
+				db.MustExec(request)
+				fmt.Println(filename + ": sql executed")
+			}
+		}
 
 		// add the migration to the migrations table
 		db.MustExec("INSERT INTO migrations (id_migration, executed_at) VALUES (?, NOW())", idMigration)
