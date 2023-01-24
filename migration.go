@@ -12,7 +12,7 @@ func Migrate(db *sqlx.DB) {
 	CREATE TABLE IF NOT EXISTS migrations (
 		id INT AUTO_INCREMENT PRIMARY KEY,
 		id_migration VARCHAR(255) NOT NULL,
-		executed_at DATETIME NOT NULL,
+		executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`)
 
 	// get all files in migrations folder
