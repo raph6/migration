@@ -9,21 +9,13 @@ import (
 )
 
 func Migrate(db *sqlx.DB) {
-	res := db.MustExec(`
+	db.MustExec(`
 	CREATE TABLE IF NOT EXISTS migrations (
 		id INT AUTO_INCREMENT PRIMARY KEY,
 		id_migration VARCHAR(255) NOT NULL,
 		executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`)
-
-	rows, err := res.RowsAffected()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(rows)
-	if rows > 0 {
-		fmt.Println("migrations table init")
-	}
+	fmt.Println("table `migrations` inited")
 
 	// get all files in migrations folder
 	files, err := os.ReadDir("migrations")
