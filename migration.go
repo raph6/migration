@@ -20,6 +20,7 @@ func Migrate(db *sqlx.DB) {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(rows)
 	if rows > 0 {
 		fmt.Println("migrations table init")
 	}
