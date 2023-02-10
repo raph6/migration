@@ -9,14 +9,20 @@ import (
 )
 
 func Migrate(db *sqlx.DB) {
-	db.MustExec(`
+	res := db.MustExec(`
 	CREATE TABLE IF NOT EXISTS migrations (
 		id INT AUTO_INCREMENT PRIMARY KEY,
 		id_migration VARCHAR(255) NOT NULL,
 		executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`)
 
-	fmt.Println("migrations table OK")
+	rows, err := res.RowsAffected()
+	if err != nil {
+		panic(err)
+	}
+	if rows > 0 {
+		fmt.Println("migrations table init")
+	}
 
 	// get all files in migrations folder
 	files, err := os.ReadDir("migrations")
@@ -65,4 +71,6 @@ func Migrate(db *sqlx.DB) {
 		// add the migration to the migrations table
 		db.MustExec("INSERT INTO migrations (id_migration, executed_at) VALUES (?, NOW())", idMigration)
 	}
+
+	fmt.Println("migrations done")
 }
