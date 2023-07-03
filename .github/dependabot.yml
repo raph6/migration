@@ -1,15 +1,7 @@
 version: 2
-registries:
-  github-octocat:
-    type: git
-    url: https://github.com
-    username: x-access-token
-    password: ${{ secrets.GH_PASSWORD }}
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
-    registries:
-      - github-octocat
     schedule:
       interval: "daily"
       time: "00:00"
