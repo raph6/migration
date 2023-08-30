@@ -1,5 +1,5 @@
 # Migration for Golang
-Currently only works with `github.com/jmoiron/sqlx` and `mysql`.
+Currently only works with `github.com/jmoiron/sqlx`.
 
 Greatly inspired by Phinx ❤️
 
