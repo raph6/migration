@@ -8,13 +8,19 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const (
+	MySQL      = "mysql"
+	PostgreSQL = "postgres"
+	SQLite     = "sqlite3"
+)
+
 func Migrate(db *sqlx.DB) {
 	dn := db.DriverName()
-	if dn != "mysql" && dn != "postgres" && dn != "sqlite3" {
+	if dn != MySQL && dn != PostgreSQL && dn != SQLite {
 		panic(fmt.Sprintf("migration: driver %s not supported\n", dn))
 	}
 
-	initTable(db)
+	createMigrationsTable(db, dn)
 
 	// get all files in migrations folder
 	files, err := os.ReadDir("migrations")
@@ -37,7 +43,7 @@ func Migrate(db *sqlx.DB) {
 
 		// check if the migration has already been executed
 		// if the migration has already been executed, skip it
-		if isImported(db, idMigration) {
+		if isImported(db, idMigration, dn) {
 			continue
 		}
 
@@ -58,60 +64,67 @@ func Migrate(db *sqlx.DB) {
 		}
 
 		// add the migration to the migrations table
-		insertMigration(db, idMigration)
+		insertMigration(db, idMigration, dn)
 	}
 
 	fmt.Println("migrations done")
 }
 
-func initTable(db *sqlx.DB) {
-	dn := db.DriverName()
+func createMigrationsTable(db *sqlx.DB, dn string) {
+	var createTableQuery string
 
-	if dn == "mysql" {
-		db.MustExec(`
-		CREATE TABLE IF NOT EXISTS migrations (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			id_migration VARCHAR(255) NOT NULL,
-			executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)`)
-	} else if dn == "postgres" {
-		db.MustExec(`
-		CREATE TABLE IF NOT EXISTS migrations (
-			id SERIAL PRIMARY KEY,
-			id_migration VARCHAR(255) NOT NULL,
-			executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)`)
-	} else if dn == "sqlite3" {
-		db.MustExec(`
-		CREATE TABLE IF NOT EXISTS migrations (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			id_migration TEXT NOT NULL,
-			executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)`)
+	switch dn {
+	case MySQL:
+		createTableQuery = `
+			CREATE TABLE IF NOT EXISTS migrations (
+				id INT AUTO_INCREMENT PRIMARY KEY,
+				id_migration VARCHAR(255) NOT NULL,
+				executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)`
+	case PostgreSQL:
+		createTableQuery = `
+			CREATE TABLE IF NOT EXISTS migrations (
+				id SERIAL PRIMARY KEY,
+				id_migration VARCHAR(255) NOT NULL,
+				executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)`
+	case SQLite:
+		createTableQuery = `
+			CREATE TABLE IF NOT EXISTS migrations (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				id_migration TEXT NOT NULL,
+				executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)`
 	}
+
+	db.MustExec(createTableQuery)
 
 	fmt.Println("table `migrations` inited")
 }
 
-func insertMigration(db *sqlx.DB, idMigration string) {
-	dn := db.DriverName()
-	if dn == "mysql" {
-		db.MustExec("INSERT INTO migrations (id_migration, executed_at) VALUES (?, NOW())", idMigration)
-	} else if dn == "postgres" {
-		db.MustExec("INSERT INTO migrations (id_migration, executed_at) VALUES ($1, NOW())", idMigration)
-	} else if dn == "sqlite3" {
-		db.MustExec("INSERT INTO migrations (id_migration, executed_at) VALUES (?, datetime('now'))", idMigration)
+func insertMigration(db *sqlx.DB, idMigration, dn string) {
+	var query string
+	switch dn {
+	case MySQL:
+		query = "INSERT INTO migrations (id_migration, executed_at) VALUES (?, NOW())"
+	case PostgreSQL:
+		query = "INSERT INTO migrations (id_migration, executed_at) VALUES ($1, NOW())"
+	case SQLite:
+		query = "INSERT INTO migrations (id_migration, executed_at) VALUES (?, datetime('now'))"
 	}
+
+	db.MustExec(query, idMigration)
 }
 
-func isImported(db *sqlx.DB, idMigration string) bool {
+func isImported(db *sqlx.DB, idMigration, dn string) bool {
 	var count int
-	dn := db.DriverName()
-	if dn == "mysql" {
+
+	switch dn {
+	case MySQL:
 		db.Get(&count, "SELECT COUNT(*) FROM migrations WHERE id_migration = ?", idMigration)
-	} else if dn == "postgres" {
+	case PostgreSQL:
 		db.Get(&count, "SELECT COUNT(*) FROM migrations WHERE id_migration = $1", idMigration)
-	} else if dn == "sqlite3" {
+	case SQLite:
 		db.Get(&count, "SELECT COUNT(*) FROM migrations WHERE id_migration = ?", idMigration)
 	}
 	return count > 0
