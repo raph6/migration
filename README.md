@@ -42,3 +42,6 @@ func main() {
     migration.Migrate(db)
 }
 ```
+
+## Incoming
+- [ ] Migration revert
