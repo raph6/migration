@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -54,17 +55,23 @@ func Migrate(db *sqlx.DB) {
 		}
 
 		// execute the migration
-		sqlStmtSlice := strings.Split(string(content), ";")
-		var request string
-		for _, stmt := range sqlStmtSlice {
-			request += stmt + ";"
-			if strings.Count(stmt, `'`) == strings.Count(request, `'`) {
-				request = strings.TrimSpace(request)
-				if request != "" {
-					db.MustExec(request)
-					fmt.Println(filename + ": sql executed")
+		// use a scanner to split the file into statements
+		scanner := bufio.NewScanner(strings.NewReader(string(content)))
+		var statement string
+		for scanner.Scan() {
+			line := scanner.Text()
+			// exclude comments
+			if !strings.HasPrefix(line, "--") {
+				statement += line + " "
+				if strings.HasSuffix(line, ";") {
+					// cmplete SQL statement found, execute it
+					statement = strings.TrimSpace(statement)
+					if statement != "" {
+						db.MustExec(statement)
+						fmt.Println(filename + ": sql executed")
+					}
+					statement = ""
 				}
-				request = ""
 			}
 		}
 
