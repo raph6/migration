@@ -54,12 +54,17 @@ func Migrate(db *sqlx.DB) {
 		}
 
 		// execute the migration
-		sqlStmtSlice := regexp.MustCompile(`;(?=(?:[^']*'[^']*')*[^']*$)`).Split(string(content), -1)
-		for _, request := range sqlStmtSlice {
-			request := strings.TrimSpace(request)
-			if request != "" {
-				db.MustExec(request)
-				fmt.Println(filename + ": sql executed")
+		sqlStmtSlice := strings.Split(string(content), ";")
+		var request string
+		for _, stmt := range sqlStmtSlice {
+			request += stmt + ";"
+			if strings.Count(stmt, `'`) == strings.Count(request, `'`) {
+				request = strings.TrimSpace(request)
+				if request != "" {
+					db.MustExec(request)
+					fmt.Println(filename + ": sql executed")
+				}
+				request = ""
 			}
 		}
 
