@@ -54,7 +54,7 @@ func Migrate(db *sqlx.DB) {
 		}
 
 		// execute the migration
-		sqlStmtSlice := strings.Split(string(content), ";")
+		sqlStmtSlice := regexp.MustCompile(`;(?=(?:[^']*'[^']*')*[^']*$)`).Split(string(content), -1)
 		for _, request := range sqlStmtSlice {
 			request := strings.TrimSpace(request)
 			if request != "" {
