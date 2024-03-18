@@ -13,11 +13,12 @@ const (
 	MySQL      = "mysql"
 	PostgreSQL = "postgres"
 	SQLite     = "sqlite3"
+	PGX        = "pgx"
 )
 
 func Migrate(db *sqlx.DB) {
 	dn := db.DriverName()
-	if dn != MySQL && dn != PostgreSQL && dn != SQLite {
+	if dn != MySQL && dn != PostgreSQL && dn != SQLite && dn != PGX {
 		panic(fmt.Sprintf("migration: driver %s not supported\n", dn))
 	}
 
@@ -93,7 +94,7 @@ func createMigrationsTable(db *sqlx.DB, dn string) {
 				id_migration VARCHAR(255) NOT NULL,
 				executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 			)`
-	case PostgreSQL:
+	case PostgreSQL, PGX:
 		createTableQuery = `
 			CREATE TABLE IF NOT EXISTS migrations (
 				id SERIAL PRIMARY KEY,
@@ -119,7 +120,7 @@ func insertMigration(db *sqlx.DB, idMigration, dn string) {
 	switch dn {
 	case MySQL:
 		query = "INSERT INTO migrations (id_migration, executed_at) VALUES (?, NOW())"
-	case PostgreSQL:
+	case PostgreSQL, PGX:
 		query = "INSERT INTO migrations (id_migration, executed_at) VALUES ($1, NOW())"
 	case SQLite:
 		query = "INSERT INTO migrations (id_migration, executed_at) VALUES (?, datetime('now'))"
@@ -134,7 +135,7 @@ func isImported(db *sqlx.DB, idMigration, dn string) bool {
 	switch dn {
 	case MySQL:
 		db.Get(&count, "SELECT COUNT(*) FROM migrations WHERE id_migration = ?", idMigration)
-	case PostgreSQL:
+	case PostgreSQL, PGX:
 		db.Get(&count, "SELECT COUNT(*) FROM migrations WHERE id_migration = $1", idMigration)
 	case SQLite:
 		db.Get(&count, "SELECT COUNT(*) FROM migrations WHERE id_migration = ?", idMigration)
