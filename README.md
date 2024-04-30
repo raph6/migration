@@ -1,8 +1,6 @@
 # Migration for Golang
 Currently only works with `github.com/jmoiron/sqlx`.
 
-Greatly inspired by Phinx ❤️
-
 ## How to use
 Install : `go get -u github.com/raph6/migration`
 
