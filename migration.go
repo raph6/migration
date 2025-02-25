@@ -16,18 +16,20 @@ const (
 	PGX        = "pgx"
 )
 
-func Migrate(db *sqlx.DB) {
+func Migrate(db *sqlx.DB) error {
 	dn := db.DriverName()
 	if dn != MySQL && dn != PostgreSQL && dn != SQLite && dn != PGX {
-		panic(fmt.Sprintf("migration: driver %s not supported\n", dn))
+		return fmt.Errorf("migration: driver %s not supported", dn)
 	}
 
-	createMigrationsTable(db, dn)
+	if err := createMigrationsTable(db, dn); err != nil {
+		return err
+	}
 
 	// get all files in migrations folder
 	files, err := os.ReadDir("migrations")
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	// loop through all files
@@ -50,9 +52,9 @@ func Migrate(db *sqlx.DB) {
 		}
 
 		// read the file
-		content, err := os.ReadFile("migrations/" + filename)
+		content, err := os.ReadFile(fmt.Sprintf("migrations/%s", filename))
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		// execute the migration
@@ -68,7 +70,10 @@ func Migrate(db *sqlx.DB) {
 					// cmplete SQL statement found, execute it
 					statement = strings.TrimSpace(statement)
 					if statement != "" {
-						db.MustExec(statement)
+						_, err := db.Exec(statement)
+						if err != nil {
+							return err
+						}
 						fmt.Println(filename + ": sql executed")
 					}
 					statement = ""
@@ -77,13 +82,17 @@ func Migrate(db *sqlx.DB) {
 		}
 
 		// add the migration to the migrations table
-		insertMigration(db, idMigration, dn)
+		if err := insertMigration(db, idMigration, dn); err != nil {
+			return err
+		}
 	}
 
 	fmt.Println("migrations done")
+
+	return nil
 }
 
-func createMigrationsTable(db *sqlx.DB, dn string) {
+func createMigrationsTable(db *sqlx.DB, dn string) error {
 	var createTableQuery string
 
 	switch dn {
@@ -110,12 +119,15 @@ func createMigrationsTable(db *sqlx.DB, dn string) {
 			)`
 	}
 
-	db.MustExec(createTableQuery)
-
-	fmt.Println("table `migrations` inited")
+	_, err := db.Exec(createTableQuery)
+	if err != nil {
+		return err
+	}
+	fmt.Println("table `migrations` initialized")
+	return nil
 }
 
-func insertMigration(db *sqlx.DB, idMigration, dn string) {
+func insertMigration(db *sqlx.DB, idMigration, dn string) error {
 	var query string
 	switch dn {
 	case MySQL:
@@ -126,7 +138,8 @@ func insertMigration(db *sqlx.DB, idMigration, dn string) {
 		query = "INSERT INTO migrations (id_migration, executed_at) VALUES (?, datetime('now'))"
 	}
 
-	db.MustExec(query, idMigration)
+	_, err := db.Exec(query, idMigration)
+	return err
 }
 
 func isImported(db *sqlx.DB, idMigration, dn string) bool {
