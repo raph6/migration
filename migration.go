@@ -1,7 +1,6 @@
 package migration
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -57,27 +56,51 @@ func Migrate(db *sqlx.DB) error {
 			return err
 		}
 
-		// execute the migration
-		// use a scanner to split the file into statements
-		scanner := bufio.NewScanner(strings.NewReader(string(content)))
+		lines := strings.Split(string(content), "\n")
 		var statement string
-		for scanner.Scan() {
-			line := scanner.Text()
-			// exclude comments
-			if !strings.HasPrefix(line, "--") {
-				statement += line + " "
-				if strings.HasSuffix(line, ";") {
-					// cmplete SQL statement found, execute it
-					statement = strings.TrimSpace(statement)
-					if statement != "" {
-						_, err := db.Exec(statement)
+		inDoBlock := false
+		for i := 0; i < len(lines); i++ {
+			line := lines[i]
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "--") {
+				continue // skip comments
+			}
+
+			if !inDoBlock && strings.HasPrefix(trimmed, "DO $$") {
+				inDoBlock = true
+				statement = line + "\n"
+				continue
+			}
+
+			if inDoBlock {
+				statement += line + "\n"
+				if strings.HasSuffix(trimmed, "END$$;") || strings.HasSuffix(trimmed, "$$;") {
+					// End of DO block
+					stmt := strings.TrimSpace(statement)
+					if stmt != "" {
+						_, err := db.Exec(stmt)
 						if err != nil {
 							return err
 						}
-						fmt.Println(filename + ": sql executed")
+						fmt.Println(filename + ": DO $$ block executed")
 					}
 					statement = ""
+					inDoBlock = false
 				}
+				continue
+			}
+
+			statement += line + " "
+			if strings.HasSuffix(trimmed, ";") {
+				stmt := strings.TrimSpace(statement)
+				if stmt != "" {
+					_, err := db.Exec(stmt)
+					if err != nil {
+						return err
+					}
+					fmt.Println(filename + ": sql executed")
+				}
+				statement = ""
 			}
 		}
 
