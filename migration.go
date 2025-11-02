@@ -57,35 +57,44 @@ func Migrate(db *sqlx.DB) error {
 		}
 
 		lines := strings.Split(string(content), "\n")
+
 		var statement string
-		inDoBlock := false
-		for i := 0; i < len(lines); i++ {
-			line := lines[i]
+		inDollarBlock := false
+		dollarTag := ""
+		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
+
 			if strings.HasPrefix(trimmed, "--") {
 				continue // skip comments
 			}
 
-			if !inDoBlock && strings.HasPrefix(trimmed, "DO $$") {
-				inDoBlock = true
-				statement = line + "\n"
-				continue
+			if !inDollarBlock && strings.Contains(trimmed, "$$") {
+				idx := strings.Index(trimmed, "$")
+				endIdx := strings.Index(trimmed[idx+1:], "$")
+				if endIdx != -1 {
+					dollarTag = trimmed[idx : idx+endIdx+2]
+					inDollarBlock = true
+					statement += line + "\n"
+					continue
+				}
 			}
 
-			if inDoBlock {
+			if inDollarBlock {
 				statement += line + "\n"
-				if strings.HasSuffix(trimmed, "END$$;") || strings.HasSuffix(trimmed, "$$;") {
-					// End of DO block
+
+				if strings.Contains(trimmed, dollarTag) {
 					stmt := strings.TrimSpace(statement)
 					if stmt != "" {
 						_, err := db.Exec(stmt)
 						if err != nil {
 							return err
 						}
-						fmt.Println(filename + ": DO $$ block executed")
+						fmt.Println("executed:", filename)
 					}
+
 					statement = ""
-					inDoBlock = false
+					inDollarBlock = false
+					dollarTag = ""
 				}
 				continue
 			}
