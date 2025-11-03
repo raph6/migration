@@ -89,7 +89,7 @@ func Migrate(db *sqlx.DB) error {
 						if err != nil {
 							return err
 						}
-						fmt.Println("executed:", filename)
+						fmt.Println(filename + ": sql executed")
 					}
 
 					statement = ""
